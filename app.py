@@ -347,7 +347,7 @@ with st.sidebar:
     st.session_state.interview_mode = 'text' if '💬' in mode else 'voice'
     
     if st.session_state.interview_mode == 'voice':
-        st.info("🎤 Mode suara: Bicara jawaban dan sistem akan mentranskripsikannya!")
+        st.info("🎤 Mode suara: Bicara jawaban Anda dan sistem akan mentranskripsikannya!")
 
 # Konten Utama
 tab1, tab2, tab3 = st.tabs(["🎯 Latihan Interview", "📊 Analitik", "💡 Tips & Panduan"])
@@ -377,15 +377,14 @@ with tab1:
         if st.button("🎲 Acak", use_container_width=True):
             import random
             category = random.choice(categories)
-            # ensure control flow re-runs so selection updates
-            st.experimental_rerun()
+            st.rerun()
     
     # Tampilkan Pertanyaan
     st.markdown("---")
-    current_question = questions_data.get(category, {})
+    current_question = questions_data[category]
     
     st.markdown(f"### 💬 Pertanyaan: {category}")
-    st.markdown(f'<div class="feature-card"><h4>{current_question.get("question","(Soal tidak ditemukan)")}</h4></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="feature-card"><h4>{current_question["question"]}</h4></div>', unsafe_allow_html=True)
     
     # Tips Berdasarkan CV
     if st.session_state.cv_uploaded and st.session_state.cv_data:
@@ -394,12 +393,8 @@ with tab1:
             st.markdown(f"**Level Pengalaman Anda:** {cv_data.get('experience_level', 'N/A')}")
             
             st.markdown("**Skill Relevan yang Bisa Disebutkan:**")
-            relevant_skills = []
-            for s in cv_data.get('skills', []):
-                s_lower = s.lower()
-                if any(kw.lower() in s_lower for kw in current_question.get('keywords', [])):
-                    relevant_skills.append(s)
-            
+            relevant_skills = [s for s in cv_data.get('skills', []) 
+                             if any(kw in s.lower() for kw in current_question['keywords'])]
             if relevant_skills:
                 for skill in relevant_skills[:5]:
                     st.markdown(f"• {skill}")
@@ -408,16 +403,16 @@ with tab1:
     
     # Petunjuk Jawaban
     with st.expander("💡 Lihat Petunjuk"):
-        ideal_range = current_question.get('ideal_length', (100, 250))
+        ideal_range = current_question['ideal_length']
         st.markdown(f"""
         **Panjang Ideal:** {ideal_range[0]}-{ideal_range[1]} kata
         
-        **Topik yang Harus Dibahas:** {', '.join(current_question.get('keywords', [])[:8])}
+        **Topik yang Harus Dibahas:** {', '.join(current_question['keywords'][:8])}
         
         **Fokus Penilaian:**
-        - Teknis: {current_question.get('weight', {}).get('technical', 0.4)*100:.0f}%
-        - Kedalaman: {current_question.get('weight', {}).get('depth', 0.3)*100:.0f}%
-        - Komunikasi: {current_question.get('weight', {}).get('structure', 0.3)*100:.0f}%
+        - Teknis: {current_question['weight']['technical']*100:.0f}%
+        - Kedalaman: {current_question['weight']['depth']*100:.0f}%
+        - Komunikasi: {current_question['weight']['structure']*100:.0f}%
         
         **Gunakan Metode STAR:**
         - **S**ituasi: Jelaskan konteksnya
@@ -446,7 +441,7 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
         
         # Penghitung kata
         word_count = len(answer.split()) if answer else 0
-        ideal_range = current_question.get('ideal_length', (100, 250))
+        ideal_range = current_question['ideal_length']
         
         col_c1, col_c2, col_c3 = st.columns(3)
         with col_c1:
@@ -458,38 +453,135 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
             st.caption(f"{status}")
         
     else:  # Mode suara
-        st.markdown("""
-        <div class="info-box">
-        <h4>🎤 Cara Menggunakan Mode Suara:</h4>
-        <ol>
-        <li>Klik tombol "Mulai Rekaman"</li>
-        <li>Bicara dengan jelas selama 2-3 menit</li>
-        <li>Klik "Stop Rekaman" jika selesai</li>
-        <li>Review transkripsi</li>
-        <li>Klik "Analisis" untuk mendapat feedback</li>
-        </ol>
-        <p><strong>Tips:</strong> Bicara dengan kecepatan normal, jelas mengucapkan istilah teknis, dan gunakan metode STAR!</p>
-        </div>
-        """, unsafe_allow_html=True)
+        # Check if mic recorder available
+        try:
+            from streamlit_mic_recorder import mic_recorder
+            mic_available = True
+        except ImportError:
+            mic_available = False
         
-        col_v1, col_v2 = st.columns(2)
-        with col_v1:
-            if st.button("🔴 Mulai Rekaman", use_container_width=True):
-                st.info("🎤 Sedang merekam... Bicara sekarang!")
-                st.session_state.recording = True
-        with col_v2:
-            if st.button("⏹️ Stop Rekaman", use_container_width=True):
-                with st.spinner("Mentranskripsikan audio..."):
-                    answer = voice_handler.transcribe_audio(category)
-                    st.session_state.transcribed_answer = answer
-                st.success("✅ Transkripsi selesai!")
-        
-        if st.session_state.get('transcribed_answer'):
-            answer = st.text_area(
-                "Hasil Transkripsi (bisa diedit):", 
-                st.session_state.transcribed_answer, 
-                height=200
+        if not mic_available:
+            st.error("""
+            ❌ **Library untuk Mode Suara belum terinstall!**
+            
+            Install dengan 1 command:
+            """)
+            st.code("pip install streamlit-mic-recorder SpeechRecognition", language="bash")
+            st.info("""
+            Setelah install, **restart aplikasi**:
+            """)
+            st.code("streamlit run app.py", language="bash")
+            
+            st.markdown("---")
+            st.success("""
+            💡 **Kelebihan Mode Suara Baru:**
+            - ✅ Tidak perlu PyAudio (no hassle!)
+            - ✅ Works di WSL/Windows/Mac/Linux
+            - ✅ Gunakan browser microphone langsung
+            - ✅ Simple & reliable
+            """)
+            
+        else:
+            # Mode suara tersedia!
+            st.success("✅ Mode Suara siap digunakan!")
+            
+            st.markdown("""
+            <div class="info-box">
+            <h4>🎤 Cara Menggunakan:</h4>
+            <ol>
+            <li><strong>Klik "🔴 Rekam"</strong> di bawah</li>
+            <li>Browser akan minta izin microphone → <strong>Allow/Izinkan</strong></li>
+            <li><strong>Bicara dengan jelas</strong> dalam Bahasa Indonesia</li>
+            <li><strong>Klik "⏹️ Stop"</strong> jika selesai (atau otomatis stop 3 menit)</li>
+            <li><strong>Dengar playback</strong> untuk cek kualitas</li>
+            <li><strong>Klik "📝 Transkripsi"</strong> untuk convert ke teks</li>
+            <li><strong>Edit</strong> jika perlu, lalu <strong>Analisis</strong>!</li>
+            </ol>
+            
+            <p><strong>💡 Tips:</strong></p>
+            <ul>
+            <li>🔇 Cari tempat tenang</li>
+            <li>🎤 Gunakan headset untuk kualitas lebih baik</li>
+            <li>📏 Target 2-3 menit</li>
+            <li>⭐ Gunakan metode STAR</li>
+            </ul>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            
+            # Microphone recorder
+            st.markdown("### 🎙️ Rekam Jawaban Anda")
+            
+            audio_data = mic_recorder(
+                start_prompt="🔴 Rekam",
+                stop_prompt="⏹️ Stop",
+                just_once=False,
+                use_container_width=True,
+                format="wav",
+                callback=None,
+                args=(),
+                kwargs={},
+                key='voice_recorder'
             )
+            
+            # Jika ada audio yang direkam
+            if audio_data:
+                st.success("✅ Audio berhasil direkam!")
+                
+                # Tampilkan audio player
+                st.audio(audio_data['bytes'], format='audio/wav')
+                st.caption(f"Durasi: ~{len(audio_data['bytes']) / 16000:.1f} detik")
+                
+                # Tombol transkripsi
+                col_t1, col_t2 = st.columns([1, 3])
+                
+                with col_t1:
+                    transcribe_btn = st.button("📝 Transkripsi", use_container_width=True, type="primary")
+                
+                with col_t2:
+                    st.caption("Klik untuk convert audio ke teks (memerlukan internet)")
+                
+                if transcribe_btn:
+                    with st.spinner("🔄 Sedang mentranskripsikan audio... (10-30 detik)"):
+                        transcribed_text = voice_handler.transcribe_from_audio_bytes(audio_data['bytes'])
+                        st.session_state.transcribed_answer = transcribed_text
+                    
+                    if "❌" in transcribed_text:
+                        st.error(transcribed_text)
+                    else:
+                        st.success("✅ Transkripsi berhasil!")
+            
+            # Tampilkan hasil transkripsi
+            if st.session_state.get('transcribed_answer'):
+                transcribed = st.session_state.transcribed_answer
+                
+                # Jika bukan error message
+                if "❌" not in transcribed:
+                    st.markdown("---")
+                    st.markdown("### ✍️ Hasil Transkripsi")
+                    st.info("💡 Anda bisa edit hasil transkripsi di bawah jika ada yang salah")
+                    
+                    answer = st.text_area(
+                        "Edit jika perlu:",
+                        transcribed,
+                        height=200,
+                        key="transcribed_text_area",
+                        help="Hasil transkripsi bisa diedit untuk perbaiki kesalahan"
+                    )
+                    
+                    # Word counter
+                    word_count = len(answer.split()) if answer else 0
+                    ideal_range = current_question['ideal_length']
+                    
+                    col_c1, col_c2, col_c3 = st.columns(3)
+                    with col_c1:
+                        st.caption(f"📝 Jumlah kata: {word_count}")
+                    with col_c2:
+                        st.caption(f"🎯 Target: {ideal_range[0]}-{ideal_range[1]} kata")
+                    with col_c3:
+                        status = "✅ Pas" if ideal_range[0] <= word_count <= ideal_range[1] else "⚠️ Perlu disesuaikan"
+                        st.caption(f"{status}")
     
     # Tombol Aksi
     st.markdown("---")
@@ -507,23 +599,23 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
     
     # Statistik Cepat
     if quick_btn and answer.strip():
-        quick_analysis = text_analyzer.quick_analysis(answer, current_question.get('keywords', []))
+        quick_analysis = text_analyzer.quick_analysis(answer, current_question['keywords'])
         
         st.markdown("### ⚡ Statistik Cepat")
         col_q1, col_q2, col_q3, col_q4 = st.columns(4)
         
         with col_q1:
-            st.metric("Kata", quick_analysis.get('word_count', 0))
+            st.metric("Kata", quick_analysis['word_count'])
         with col_q2:
-            st.metric("Kalimat", quick_analysis.get('sentence_count', 0))
+            st.metric("Kalimat", quick_analysis['sentence_count'])
         with col_q3:
-            st.metric("Kata/Kalimat", f"{quick_analysis.get('avg_sentence_length', 0):.1f}")
+            st.metric("Kata/Kalimat", f"{quick_analysis['avg_sentence_length']:.1f}")
         with col_q4:
-            st.metric("Keyword", quick_analysis.get('keywords_found', 0))
+            st.metric("Keyword", quick_analysis['keywords_found'])
         
-        progress = quick_analysis.get('keyword_coverage', 0) / 100
+        progress = quick_analysis['keyword_coverage'] / 100
         st.progress(progress)
-        st.caption(f"Cakupan Keyword: {quick_analysis.get('keyword_coverage', 0):.0f}%")
+        st.caption(f"Cakupan Keyword: {quick_analysis['keyword_coverage']:.0f}%")
     
     # Analisis Lengkap
     if analyze_btn:
@@ -547,7 +639,7 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
                 # Hitung skor
                 scores = scoring_engine.calculate_scores(
                     analysis_result=analysis_result,
-                    question_weights=current_question.get('weight', {'technical':0.4,'depth':0.3,'structure':0.3}),
+                    question_weights=current_question['weight'],
                     difficulty=difficulty
                 )
                 
@@ -562,7 +654,7 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
                 # Simpan ke session
                 st.session_state.current_analysis = {
                     'category': category,
-                    'question': current_question.get('question', ''),
+                    'question': current_question['question'],
                     'answer': answer,
                     'best_answer': best_answer,
                     'analysis': analysis_result,
@@ -572,10 +664,10 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
                 
                 # Update history
                 st.session_state.question_count += 1
-                st.session_state.total_score += scores.get('overall', 0)
+                st.session_state.total_score += scores['overall']
                 st.session_state.interview_history.append({
                     'category': category,
-                    'score': scores.get('overall', 0),
+                    'score': scores['overall'],
                     'difficulty': difficulty
                 })
             
@@ -584,7 +676,7 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
             st.success("✅ Analisis Selesai!")
             
             # Skor Keseluruhan
-            overall = scores.get('overall', 0)
+            overall = scores['overall']
             if overall >= 4.5:
                 score_class = "score-excellent"
                 emoji = "🌟"
@@ -606,11 +698,11 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
             col_s1, col_s2, col_s3 = st.columns(3)
             
             with col_s1:
-                st.metric("🎯 Akurasi Teknis", f"{scores.get('technical_accuracy',0):.1f}/5.0")
+                st.metric("🎯 Akurasi Teknis", f"{scores['technical_accuracy']:.1f}/5.0")
             with col_s2:
-                st.metric("📚 Kedalaman", f"{scores.get('depth_of_knowledge',0):.1f}/5.0")
+                st.metric("📚 Kedalaman", f"{scores['depth_of_knowledge']:.1f}/5.0")
             with col_s3:
-                st.metric("💬 Komunikasi", f"{scores.get('communication_clarity',0):.1f}/5.0")
+                st.metric("💬 Komunikasi", f"{scores['communication_clarity']:.1f}/5.0")
             
             # Bagian Feedback
             st.markdown("---")
@@ -622,7 +714,7 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
             
             # Jawaban Terbaik
             st.markdown("#### ✅ Contoh Jawaban Terbaik")
-            best_preview = best_answer[:400] + "..." if isinstance(best_answer, str) and len(best_answer) > 400 else best_answer
+            best_preview = best_answer[:400] + "..." if len(best_answer) > 400 else best_answer
             st.markdown(f'<div class="correct-answer">{best_preview}</div>', unsafe_allow_html=True)
             
             with st.expander("📖 Lihat Jawaban Lengkap"):
@@ -632,55 +724,43 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
             st.markdown("#### 🔄 Analisis Perbandingan")
             col_comp1, col_comp2 = st.columns(2)
             
-            strengths = feedback.get('strengths', [])
-            gaps = feedback.get('gaps', [])
-            improvements = feedback.get('improvements', [])
-            recommendations = feedback.get('recommendations', [])
-            specific_feedback = feedback.get('specific_feedback', None)
-            summary = feedback.get('summary', None)
-            
             with col_comp1:
                 st.markdown("**✅ Yang Sudah Bagus:**")
-                if strengths:
-                    for strength in strengths:
+                if feedback['strengths']:
+                    for strength in feedback['strengths']:
                         st.markdown(f'<div class="strength-box">✅ {strength}</div>', unsafe_allow_html=True)
                 else:
                     st.info("Belum ada kekuatan yang teridentifikasi")
             
             with col_comp2:
                 st.markdown("**⚠️ Yang Masih Kurang:**")
-                if gaps:
-                    for gap in gaps:
+                if feedback['gaps']:
+                    for gap in feedback['gaps']:
                         st.markdown(f'<div class="improvement-box">⚠️ {gap}</div>', unsafe_allow_html=True)
-                elif improvements:
-                    for imp in improvements:
-                        st.markdown(f'<div class="improvement-box">⚠️ {imp}</div>', unsafe_allow_html=True)
                 else:
                     st.success("Jawaban sudah cukup lengkap!")
             
             # Feedback Spesifik
             st.markdown("#### 💡 Feedback Spesifik")
-            # Use specific_feedback or join some recommendations as fallback
-            specific_feedback_text = specific_feedback if specific_feedback else (" ".join(recommendations[:2]) if recommendations else "No specific feedback available.")
-            st.markdown(f'<div class="feedback-box">{specific_feedback_text}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="feedback-box">{feedback["specific_feedback"]}</div>', 
+                       unsafe_allow_html=True)
             
             # Area Perbaikan
             st.markdown("#### 🎯 Area yang Perlu Diperbaiki")
-            if improvements:
-                for i, improvement in enumerate(improvements, 1):
+            if feedback['improvements']:
+                for i, improvement in enumerate(feedback['improvements'], 1):
                     st.markdown(f"**{i}.** {improvement}")
             else:
                 st.success("Jawaban Anda sudah sangat baik!")
             
             # Ringkasan
             st.markdown("#### 📋 Ringkasan")
-            summary_text = summary if summary else (" ".join(recommendations[:2]) if recommendations else "Ringkasan tidak tersedia.")
-            st.info(summary_text)
+            st.info(feedback['summary'])
             
             # Rekomendasi
             with st.expander("📚 Rekomendasi Belajar"):
                 st.markdown("**Sumber Belajar yang Direkomendasikan:**")
-                for rec in recommendations:
+                for rec in feedback['recommendations']:
                     st.markdown(f"• {rec}")
 
 with tab2:
@@ -689,28 +769,181 @@ with tab2:
     if st.session_state.question_count == 0:
         st.info("📝 Mulai latihan untuk melihat analitik Anda!")
     else:
-        # Grafik Progress
-        if len(st.session_state.interview_history) > 0:
-            st.markdown("#### 📈 Perkembangan Skor")
-            try:
-                progress_fig = viz_generator.create_progress_chart(st.session_state.interview_history)
-                st.plotly_chart(progress_fig, use_container_width=True)
-            except Exception as e:
-                st.error("Gagal membuat grafik progress: " + str(e))
+        # Summary Cards
+        col_sum1, col_sum2, col_sum3, col_sum4 = st.columns(4)
         
-        # Performa per Kategori
+        avg_score = st.session_state.total_score / st.session_state.question_count
+        
+        with col_sum1:
+            st.metric(
+                "Total Latihan",
+                st.session_state.question_count,
+                help="Jumlah pertanyaan yang sudah dijawab"
+            )
+        
+        with col_sum2:
+            st.metric(
+                "Rata-rata Skor",
+                f"{avg_score:.1f}/5.0",
+                delta=f"{'+' if avg_score >= 3.5 else ''}{avg_score - 3.5:.1f}",
+                help="Target: 3.5+"
+            )
+        
+        with col_sum3:
+            best_score = max([item['score'] for item in st.session_state.interview_history])
+            st.metric(
+                "Skor Terbaik",
+                f"{best_score:.1f}/5.0",
+                help="Skor tertinggi yang pernah dicapai"
+            )
+        
+        with col_sum4:
+            improvement = 0
+            if len(st.session_state.interview_history) >= 2:
+                recent_avg = sum([item['score'] for item in st.session_state.interview_history[-3:]]) / min(3, len(st.session_state.interview_history))
+                first_avg = sum([item['score'] for item in st.session_state.interview_history[:3]]) / min(3, len(st.session_state.interview_history))
+                improvement = recent_avg - first_avg
+            
+            st.metric(
+                "Peningkatan",
+                f"{improvement:+.1f}",
+                delta="dari awal" if improvement > 0 else None,
+                help="Perbandingan 3 latihan terakhir vs 3 pertama"
+            )
+        
+        st.markdown("---")
+        
+        # Grafik Progress Over Time
+        if len(st.session_state.interview_history) > 1:
+            st.markdown("#### 📈 Perkembangan Skor dari Waktu ke Waktu")
+            
+            progress_fig = viz_generator.create_progress_chart(st.session_state.interview_history)
+            st.plotly_chart(progress_fig, use_container_width=True)
+            
+            st.caption("💡 Garis biru: skor actual | Garis hijau: trend | Garis kuning: target (3.5)")
+        
+        st.markdown("---")
+        
+        # Performance by Category
         st.markdown("#### 🎯 Performa per Kategori")
+        
         category_data = {}
         for item in st.session_state.interview_history:
-            cat = item.get('category', 'Unknown')
-            category_data.setdefault(cat, []).append(item.get('score', 0))
+            cat = item['category']
+            if cat not in category_data:
+                category_data[cat] = []
+            category_data[cat].append(item['score'])
         
         if category_data:
-            for cat, scores in category_data.items():
-                avg = sum(scores) / len(scores) if scores else 0
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.metric(cat, f"{avg:.1f}/5.0")
+            # Hitung rata-rata per kategori
+            category_avgs = {cat: sum(scores)/len(scores) for cat, scores in category_data.items()}
+            
+            # Bar chart performa per kategori
+            import plotly.graph_objects as go
+            
+            categories = list(category_avgs.keys())
+            avgs = list(category_avgs.values())
+            attempts = [len(category_data[cat]) for cat in categories]
+            
+            # Color coding berdasarkan skor
+            colors = ['#28a745' if avg >= 4.0 else '#ffc107' if avg >= 3.5 else '#dc3545' 
+                     for avg in avgs]
+            
+            fig = go.Figure(data=[
+                go.Bar(
+                    x=categories,
+                    y=avgs,
+                    text=[f"{avg:.1f}<br>({att}x)" for avg, att in zip(avgs, attempts)],
+                    textposition='outside',
+                    marker_color=colors,
+                    hovertemplate='<b>%{x}</b><br>Rata-rata: %{y:.2f}/5.0<extra></extra>'
+                )
+            ])
+            
+            fig.update_layout(
+                title="Rata-rata Skor per Kategori",
+                xaxis_title="Kategori",
+                yaxis_title="Skor (0-5)",
+                yaxis=dict(range=[0, 5.5]),
+                showlegend=False,
+                height=400
+            )
+            
+            # Tambah garis target
+            fig.add_hline(y=3.5, line_dash="dash", line_color="orange", 
+                         annotation_text="Target: 3.5")
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            st.caption("💡 Hijau: Excellent (≥4.0) | Kuning: Good (≥3.5) | Merah: Perlu Latihan (<3.5)")
+        
+        st.markdown("---")
+        
+        # Breakdown by Difficulty
+        st.markdown("#### 📊 Performa Berdasarkan Level Kesulitan")
+        
+        difficulty_data = {}
+        for item in st.session_state.interview_history:
+            diff = item['difficulty']
+            if diff not in difficulty_data:
+                difficulty_data[diff] = []
+            difficulty_data[diff].append(item['score'])
+        
+        if difficulty_data:
+            col_d1, col_d2, col_d3 = st.columns(3)
+            
+            for col, level in zip([col_d1, col_d2, col_d3], ['Junior', 'Mid-level', 'Senior']):
+                if level in difficulty_data:
+                    scores = difficulty_data[level]
+                    avg = sum(scores) / len(scores)
+                    
+                    with col:
+                        st.metric(
+                            f"{level}",
+                            f"{avg:.1f}/5.0",
+                            f"{len(scores)} percobaan"
+                        )
+        
+        st.markdown("---")
+        
+        # Strengths & Weaknesses
+        st.markdown("#### 💪 Kekuatan & Area Pengembangan")
+        
+        col_sw1, col_sw2 = st.columns(2)
+        
+        with col_sw1:
+            st.markdown("**🌟 Kategori Terkuat:**")
+            if category_avgs:
+                top_3 = sorted(category_avgs.items(), key=lambda x: x[1], reverse=True)[:3]
+                for i, (cat, score) in enumerate(top_3, 1):
+                    st.markdown(f"{i}. **{cat}**: {score:.1f}/5.0")
+        
+        with col_sw2:
+            st.markdown("**📈 Perlu Lebih Banyak Latihan:**")
+            if category_avgs:
+                bottom_3 = sorted(category_avgs.items(), key=lambda x: x[1])[:3]
+                for i, (cat, score) in enumerate(bottom_3, 1):
+                    st.markdown(f"{i}. **{cat}**: {score:.1f}/5.0")
+        
+        st.markdown("---")
+        
+        # Recent Performance
+        st.markdown("#### 🕐 Performa 5 Latihan Terakhir")
+        
+        recent_5 = st.session_state.interview_history[-5:]
+        
+        for i, item in enumerate(reversed(recent_5), 1):
+            col_r1, col_r2, col_r3 = st.columns([3, 1, 1])
+            
+            with col_r1:
+                st.markdown(f"**{len(st.session_state.interview_history) - i + 1}. {item['category']}**")
+            
+            with col_r2:
+                score_color = "🟢" if item['score'] >= 4.0 else "🟡" if item['score'] >= 3.5 else "🔴"
+                st.markdown(f"{score_color} {item['score']:.1f}/5.0")
+            
+            with col_r3:
+                st.caption(item['difficulty'])
                 with col2:
                     st.caption(f"{len(scores)} percobaan")
 
@@ -761,34 +994,129 @@ with tab3:
     st.markdown("---")
     st.markdown("#### 📚 Sumber Belajar yang Direkomendasikan")
     
+    st.info("💡 Klik link di bawah untuk langsung mengakses sumber belajar")
+    
     col_r1, col_r2, col_r3 = st.columns(3)
     
     with col_r1:
         st.markdown("""
-        **📖 Buku**
-        - Cracking the Data Science Interview
-        - Data Science Handbook
-        - Introduction to Statistical Learning
-        - Python for Data Analysis
+        **📖 Buku & E-Book**
+        
+        - [Python for Data Analysis (O'Reilly)](https://wesmckinney.com/book/)
+        - [Introduction to Statistical Learning](https://www.statlearning.com/)
+        - [Hands-On Machine Learning](https://github.com/ageron/handson-ml2)
+        - [Deep Learning Book](https://www.deeplearningbook.org/)
         """)
     
     with col_r2:
         st.markdown("""
-        **🎥 Video & Course**
-        - Kaggle Learn
-        - DataCamp Career Tracks
-        - StatQuest (YouTube)
-        - Fast.ai Courses
+        **🎥 Video & Course Gratis**
+        
+        - [Kaggle Learn](https://www.kaggle.com/learn)
+        - [Fast.ai Courses](https://www.fast.ai/)
+        - [StatQuest YouTube](https://www.youtube.com/@statquest)
+        - [FreeCodeCamp DS](https://www.freecodecamp.org/learn/data-analysis-with-python/)
+        - [Google ML Crash Course](https://developers.google.com/machine-learning/crash-course)
         """)
     
     with col_r3:
         st.markdown("""
         **💻 Platform Latihan**
-        - LeetCode (SQL & Python)
-        - HackerRank Data Science
-        - Kaggle Competitions
-        - StrataScratch
+        
+        - [LeetCode Database](https://leetcode.com/problemset/database/)
+        - [HackerRank SQL](https://www.hackerrank.com/domains/sql)
+        - [Kaggle Competitions](https://www.kaggle.com/competitions)
+        - [StrataScratch](https://www.stratascratch.com/)
+        - [DataCamp (Free tier)](https://www.datacamp.com/courses)
         """)
+    
+    st.markdown("---")
+    
+    st.markdown("#### 🇮🇩 Komunitas & Forum Indonesia")
+    
+    col_c1, col_c2 = st.columns(2)
+    
+    with col_c1:
+        st.markdown("""
+        **💬 Komunitas Online**
+        
+        - [Indonesia AI LinkedIn](https://www.linkedin.com/company/indonesia-ai/)
+        - [Data Science Indonesia (Telegram)](https://t.me/datascienceindonesia)
+        - [Python Indonesia (Discord)](https://discord.gg/python-indonesia)
+        - [r/dataengineering](https://www.reddit.com/r/dataengineering/)
+        """)
+    
+    with col_c2:
+        st.markdown("""
+        **🎓 Bootcamp & Course Indonesia**
+        
+        - [Dicoding (Machine Learning Path)](https://www.dicoding.com/learningpaths/30)
+        - [Skilvul](https://skilvul.com/)
+        - [MySkill.id](https://myskill.id/)
+        - [BuildWithAngga](https://buildwithangga.com/)
+        """)
+    
+    st.markdown("---")
+    
+    st.markdown("#### 📰 Blog & Newsletter")
+    
+    col_b1, col_b2 = st.columns(2)
+    
+    with col_b1:
+        st.markdown("""
+        **📝 Blog Teknis**
+        
+        - [Towards Data Science](https://towardsdatascience.com/)
+        - [Analytics Vidhya](https://www.analyticsvidhya.com/blog/)
+        - [KDnuggets](https://www.kdnuggets.com/)
+        - [Machine Learning Mastery](https://machinelearningmastery.com/)
+        """)
+    
+    with col_b2:
+        st.markdown("""
+        **📧 Newsletter**
+        
+        - [Data Science Weekly](https://www.datascienceweekly.org/)
+        - [The Batch (deeplearning.ai)](https://www.deeplearning.ai/the-batch/)
+        - [ImportAI](https://jack-clark.net/)
+        - [TLDR AI](https://tldr.tech/ai)
+        """)
+    
+    st.markdown("---")
+    
+    st.markdown("#### 🛠️ Tools & Praktik**")
+    
+    col_t1, col_t2 = st.columns(2)
+    
+    with col_t1:
+        st.markdown("""
+        **💻 Development Environment**
+        
+        - [Jupyter Lab](https://jupyter.org/)
+        - [Google Colab](https://colab.research.google.com/)
+        - [Kaggle Notebooks](https://www.kaggle.com/code)
+        - [VS Code](https://code.visualstudio.com/)
+        """)
+    
+    with col_t2:
+        st.markdown("""
+        **📊 Portfolio Projects**
+        
+        - [GitHub Portfolio Ideas](https://github.com/topics/data-science-portfolio)
+        - [Kaggle Project Showcase](https://www.kaggle.com/datasets)
+        - [Awesome Data Science](https://github.com/academic/awesome-datascience)
+        """)
+    
+    st.markdown("---")
+    
+    st.success("""
+    💡 **Tips Belajar Efektif:**
+    1. Pilih 1-2 sumber dan fokus sampai selesai
+    2. Praktik dengan project nyata, bukan hanya tutorial
+    3. Join komunitas untuk networking & belajar bareng
+    4. Konsisten 1-2 jam per hari lebih baik dari marathon weekend
+    5. Build portfolio di GitHub untuk showcase ke recruiter
+    """)
     
     st.markdown("---")
     st.markdown("#### 🎓 Contoh Jawaban: Bagus vs Kurang Bagus")
@@ -861,7 +1189,7 @@ with tab3:
     - Gunakan konteks
     - Bicara sedikit lebih lambat untuk istilah kompleks
     """)
-    
+
 # Footer
 st.markdown("---")
 st.caption("🎯 Simulator Interview Data Science | Dibuat dengan ❤️ untuk Data Scientist Indonesia")

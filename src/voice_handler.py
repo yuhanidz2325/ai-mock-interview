@@ -9,9 +9,29 @@ import streamlit as st
 class VoiceHandler:
     """
     Handles voice recording and speech-to-text transcription
+    
+    CATATAN PENTING:
+    Mode suara saat ini memerlukan library tambahan yang tidak terinstall secara default.
+    Untuk mengaktifkan mode suara yang sesungguhnya, install:
+    - pip install SpeechRecognition
+    - pip install pydub
+    - pip install pyaudio (memerlukan system libraries)
+    
+    Saat ini, mode suara akan menampilkan warning dan tidak berfungsi
+    sampai library diinstall.
     """
     
     def __init__(self):
+        # Cek apakah library voice recognition tersedia
+        self.voice_available = False
+        try:
+            import speech_recognition as sr
+            self.recognizer = sr.Recognizer()
+            self.voice_available = True
+        except ImportError:
+            self.recognizer = None
+        
+        # Sample transcriptions hanya untuk demo/fallback
         self.sample_transcriptions = {
             'technical': """
             I have extensive experience with Python and its data science ecosystem. 
@@ -46,29 +66,78 @@ class VoiceHandler:
     
     def transcribe_audio(self, question_category='technical'):
         """
-        Simulate voice transcription
-        In production, this would use actual speech recognition
+        Transcribe audio dari microphone menggunakan Google Speech Recognition
         
         Args:
-            question_category (str): Category to determine sample response
+            question_category (str): Kategori pertanyaan
             
         Returns:
-            str: Transcribed text
+            str: Transcribed text atau error message
         """
-        # In a real implementation, this would:
-        # 1. Record audio from microphone
-        # 2. Send to speech recognition service (Google Speech API, Whisper, etc.)
-        # 3. Return transcribed text
+        if not self.voice_available:
+            return """❌ MODE SUARA BELUM DAPAT DIGUNAKAN
+
+Library yang dibutuhkan belum terinstall!
+
+📋 CARA INSTALL:
+
+Windows:
+1. Download PyAudio wheel dari:
+   https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio
+   
+2. Install dengan:
+   pip install PyAudio-0.2.14-cp312-cp312-win_amd64.whl
+   
+3. Install library lainnya:
+   pip install SpeechRecognition pydub
+
+Mac/Linux:
+1. Install PortAudio:
+   Mac: brew install portaudio
+   Linux: sudo apt-get install portaudio19-dev
+   
+2. Install library:
+   pip install pyaudio SpeechRecognition pydub
+
+Setelah install, RESTART aplikasi!
+
+💡 ALTERNATIF:
+Untuk saat ini, gunakan MODE TEKS yang sudah berfungsi penuh.
+
+Lihat file VOICE_MODE_SETUP.md untuk panduan lengkap.
+"""
         
-        # For now, return a sample transcription
-        category_map = {
-            'Technical Skills & Background': 'technical',
-            'Statistical Knowledge': 'statistical',
-            'Problem Solving & Case Study': 'problem_solving'
-        }
+        try:
+            import speech_recognition as sr
+            
+            # Record audio dari microphone
+            with sr.Microphone() as source:
+                # Adjust for ambient noise
+                self.recognizer.adjust_for_ambient_noise(source, duration=1)
+                
+                # Mulai recording
+                print("🎤 Sedang merekam... Silakan bicara sekarang!")
+                audio = self.recognizer.listen(source, timeout=180, phrase_time_limit=180)
+                
+                print("✅ Rekaman selesai, sedang mentranskripsikan...")
+            
+            # Transkripsi menggunakan Google Speech Recognition
+            # Gunakan bahasa Indonesia
+            text = self.recognizer.recognize_google(audio, language='id-ID')
+            
+            return text
+            
+        except sr.WaitTimeoutError:
+            return "❌ Timeout - Tidak ada suara yang terdeteksi dalam 3 menit. Coba lagi dan bicara lebih cepat."
         
-        selected = category_map.get(question_category, 'technical')
-        return self.sample_transcriptions[selected].strip()
+        except sr.UnknownValueError:
+            return "❌ Tidak dapat memahami audio. Coba bicara lebih jelas dan pastikan microphone berfungsi."
+        
+        except sr.RequestError as e:
+            return f"❌ Error koneksi ke Google Speech API: {str(e)}\n\nPastikan Anda terkoneksi internet!"
+        
+        except Exception as e:
+            return f"❌ Error: {str(e)}\n\nCoba restart aplikasi atau gunakan Mode Teks."
     
     def get_microphone_button_html(self):
         """

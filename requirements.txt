@@ -21,7 +21,11 @@ python-docx==1.1.0
 python-dateutil==2.8.2
 pytz==2023.3
 
-# Optional (for voice mode - uncomment if needed)
-# SpeechRecognition==3.10.0
-# pydub==0.25.1
-# pyaudio==0.2.14
+# Voice Mode (SIMPLE & WORKS EVERYWHERE!)
+# Install untuk aktifkan mode suara:
+# pip install streamlit-mic-recorder SpeechRecognition
+#
+# Tidak perlu PyAudio lagi! Menggunakan browser microphone.
+# Works di: Windows, WSL, Mac, Linux
+streamlit-mic-recorder==0.0.7
+SpeechRecognition==3.10.0
