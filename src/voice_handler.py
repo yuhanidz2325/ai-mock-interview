@@ -1,28 +1,21 @@
 """
-Voice Handler Module
-Handles voice recording and transcription for voice mode interviews
+Voice Handler Module - Browser-based Audio Recording
+Menggunakan browser microphone via streamlit_mic_recorder
 """
 
-import streamlit as st
+import io
+import tempfile
+import os
 
 
 class VoiceHandler:
     """
     Handles voice recording and speech-to-text transcription
-    
-    CATATAN PENTING:
-    Mode suara saat ini memerlukan library tambahan yang tidak terinstall secara default.
-    Untuk mengaktifkan mode suara yang sesungguhnya, install:
-    - pip install SpeechRecognition
-    - pip install pydub
-    - pip install pyaudio (memerlukan system libraries)
-    
-    Saat ini, mode suara akan menampilkan warning dan tidak berfungsi
-    sampai library diinstall.
+    Menggunakan browser microphone (no PyAudio needed!)
     """
     
     def __init__(self):
-        # Cek apakah library voice recognition tersedia
+        # Check if SpeechRecognition available
         self.voice_available = False
         try:
             import speech_recognition as sr
@@ -30,350 +23,168 @@ class VoiceHandler:
             self.voice_available = True
         except ImportError:
             self.recognizer = None
-        
-        # Sample transcriptions hanya untuk demo/fallback
-        self.sample_transcriptions = {
-            'technical': """
-            I have extensive experience with Python and its data science ecosystem. 
-            In my recent project analyzing customer churn for an e-commerce company, 
-            I used pandas for data manipulation handling over 2 million records. 
-            I implemented feature engineering using numpy and built predictive models 
-            with scikit-learn's RandomForestClassifier achieving 87% accuracy. 
-            The project involved data cleaning, handling missing values, and creating 
-            visualizations with matplotlib to present findings to stakeholders. 
-            I also deployed the model using Flask API with Docker containerization.
-            """,
-            'statistical': """
-            To explain supervised versus unsupervised learning to non-technical stakeholders, 
-            I use practical analogies. Supervised learning is like teaching with flashcards - 
-            you show examples with correct answers. For instance, email spam detection where 
-            we train models with labeled data. Unsupervised learning is like organizing without 
-            instructions - the algorithm finds patterns itself. Customer segmentation is a good 
-            example where we group customers by behavior without predefined categories. 
-            The key difference is whether we provide the correct answers during training.
-            """,
-            'problem_solving': """
-            For a customer churn prediction project, I would follow a systematic approach. 
-            First, understand the business context and define what constitutes churn. 
-            Second, collect historical customer data including demographics and behavior patterns. 
-            Third, perform exploratory data analysis to identify key patterns. 
-            Fourth, engineer features like recency metrics and lifetime value. 
-            Fifth, build baseline models before trying complex algorithms. 
-            Sixth, evaluate using appropriate metrics like precision-recall. 
-            Finally, deploy with monitoring for data drift and model performance.
-            """
-        }
     
-    def transcribe_audio(self, question_category='technical'):
+    def transcribe_from_audio_bytes(self, audio_bytes):
         """
-        Transcribe audio dari microphone menggunakan Google Speech Recognition
+        Transcribe audio dari bytes yang direkam browser
         
         Args:
-            question_category (str): Kategori pertanyaan
+            audio_bytes: Audio data dalam bytes (dari mic recorder)
             
         Returns:
             str: Transcribed text atau error message
         """
         if not self.voice_available:
-            return """❌ MODE SUARA BELUM DAPAT DIGUNAKAN
+            return """❌ Library SpeechRecognition belum terinstall!
 
-Library yang dibutuhkan belum terinstall!
+Install dengan:
+pip install SpeechRecognition
 
-📋 CARA INSTALL:
-
-Windows:
-1. Download PyAudio wheel dari:
-   https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio
-   
-2. Install dengan:
-   pip install PyAudio-0.2.14-cp312-cp312-win_amd64.whl
-   
-3. Install library lainnya:
-   pip install SpeechRecognition pydub
-
-Mac/Linux:
-1. Install PortAudio:
-   Mac: brew install portaudio
-   Linux: sudo apt-get install portaudio19-dev
-   
-2. Install library:
-   pip install pyaudio SpeechRecognition pydub
-
-Setelah install, RESTART aplikasi!
-
-💡 ALTERNATIF:
-Untuk saat ini, gunakan MODE TEKS yang sudah berfungsi penuh.
-
-Lihat file VOICE_MODE_SETUP.md untuk panduan lengkap.
+Kemudian restart aplikasi.
 """
+        
+        if not audio_bytes:
+            return "❌ Tidak ada audio yang direkam. Coba lagi."
         
         try:
             import speech_recognition as sr
             
-            # Record audio dari microphone
-            with sr.Microphone() as source:
-                # Adjust for ambient noise
-                self.recognizer.adjust_for_ambient_noise(source, duration=1)
+            # Save audio bytes to temporary WAV file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio:
+                temp_audio.write(audio_bytes)
+                temp_audio_path = temp_audio.name
+            
+            try:
+                # Load audio file
+                with sr.AudioFile(temp_audio_path) as source:
+                    audio_data = self.recognizer.record(source)
                 
-                # Mulai recording
-                print("🎤 Sedang merekam... Silakan bicara sekarang!")
-                audio = self.recognizer.listen(source, timeout=180, phrase_time_limit=180)
+                # Transcribe menggunakan Google Speech Recognition (Bahasa Indonesia)
+                text = self.recognizer.recognize_google(audio_data, language='id-ID')
                 
-                print("✅ Rekaman selesai, sedang mentranskripsikan...")
+                return text
+                
+            finally:
+                # Cleanup temporary file
+                if os.path.exists(temp_audio_path):
+                    os.remove(temp_audio_path)
             
-            # Transkripsi menggunakan Google Speech Recognition
-            # Gunakan bahasa Indonesia
-            text = self.recognizer.recognize_google(audio, language='id-ID')
-            
-            return text
-            
-        except sr.WaitTimeoutError:
-            return "❌ Timeout - Tidak ada suara yang terdeteksi dalam 3 menit. Coba lagi dan bicara lebih cepat."
-        
         except sr.UnknownValueError:
-            return "❌ Tidak dapat memahami audio. Coba bicara lebih jelas dan pastikan microphone berfungsi."
+            return """❌ Tidak dapat memahami audio yang direkam.
+
+Tips:
+- Bicara lebih jelas dan keras
+- Pastikan tidak ada background noise
+- Rekam di tempat yang tenang
+- Coba rekam ulang"""
         
         except sr.RequestError as e:
-            return f"❌ Error koneksi ke Google Speech API: {str(e)}\n\nPastikan Anda terkoneksi internet!"
+            return f"""❌ Error koneksi ke Google Speech API: {str(e)}
+
+Pastikan:
+- Anda terkoneksi internet
+- Koneksi stabil (tidak putus-putus)
+- Coba lagi dalam beberapa saat"""
         
         except Exception as e:
-            return f"❌ Error: {str(e)}\n\nCoba restart aplikasi atau gunakan Mode Teks."
+            return f"""❌ Error saat memproses audio: {str(e)}
+
+Coba:
+- Rekam ulang audio
+- Pastikan audio tidak corrupt
+- Restart aplikasi jika masih error"""
     
-    def get_microphone_button_html(self):
+    def get_setup_instructions(self):
         """
-        Returns HTML for a styled microphone button
+        Return instruksi setup untuk mode suara
         """
         return """
-        <style>
-        .mic-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 50%;
-            width: 80px;
-            height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-            transition: all 0.3s;
-        }
-        
-        .mic-button:hover {
-            transform: scale(1.1);
-            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.5);
-        }
-        
-        .mic-button:active {
-            transform: scale(0.95);
-        }
-        
-        .mic-icon {
-            color: white;
-            font-size: 32px;
-        }
-        
-        .recording {
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        </style>
-        
-        <button class="mic-button" id="micButton">
-            <span class="mic-icon">🎤</span>
-        </button>
-        """
-    
-    def record_audio_streamlit(self):
-        """
-        Streamlit-compatible audio recording interface
-        """
-        st.markdown("### 🎤 Voice Recording")
-        
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col2:
-            st.markdown(self.get_microphone_button_html(), unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center; color: #666;'>Click to start recording</p>", 
-                       unsafe_allow_html=True)
-        
-        recording_instructions = """
-        **Recording Tips:**
-        - 🎯 Speak clearly and at a moderate pace
-        - 🔇 Find a quiet environment
-        - ⏱️ Aim for 2-3 minutes
-        - 📝 Structure your answer (STAR method)
-        - 🎤 Keep microphone at consistent distance
-        """
-        
-        st.info(recording_instructions)
+### 🎤 Setup Mode Suara
+
+Mode suara sekarang menggunakan **browser microphone** - jauh lebih mudah!
+
+#### Install (Hanya 1 Command):
+
+```bash
+pip install streamlit-mic-recorder SpeechRecognition
+```
+
+#### Restart Aplikasi:
+
+```bash
+streamlit run app.py
+```
+
+Setelah itu mode suara langsung bisa digunakan! 🚀
+
+#### Cara Pakai:
+
+1. Klik tombol **"🔴 Rekam"**
+2. Browser akan minta izin microphone - **Allow/Izinkan**
+3. Bicara jawaban Anda dalam **Bahasa Indonesia**
+4. Klik **"⏹️ Stop"** jika selesai
+5. Dengar playback (opsional)
+6. Klik **"📝 Transkripsi"**
+7. Edit jika perlu, lalu **Analisis**!
+
+#### Troubleshooting:
+
+**Browser tidak minta izin microphone?**
+- Cek Settings browser → Permissions → Microphone
+- Pastikan localhost diizinkan
+
+**Transkripsi salah?**
+- Bicara lebih jelas dan keras
+- Rekam di tempat tenang
+- Gunakan headset dengan mic jika ada
+
+**Tidak ada suara saat playback?**
+- Cek volume speaker/headphone
+- Browser mungkin mem-block autoplay
+"""
     
     def provide_voice_mode_guide(self):
         """
-        Provides comprehensive guide for voice mode
+        Panduan lengkap mode suara
         """
         guide = """
-        ## 🎤 Voice Mode Guide
-        
-        ### How It Works
-        1. Click "Start Recording" button
-        2. Speak your answer clearly
-        3. Click "Stop Recording" when done
-        4. Review the transcription
-        5. Edit if needed, then analyze
-        
-        ### Best Practices
-        - **Environment**: Choose a quiet location
-        - **Microphone**: Use a good quality mic if possible
-        - **Pace**: Speak at normal conversational speed
-        - **Clarity**: Enunciate technical terms clearly
-        - **Structure**: Plan your answer before speaking
-        
-        ### Tips for Technical Terms
-        - Spell out abbreviations: "S-Q-L" instead of "sequel"
-        - Pause briefly before technical terms
-        - Use context to help recognition
-        
-        ### Common Issues
-        - **Background Noise**: Use headphones with mic
-        - **Accent**: Speak slowly and clearly
-        - **Technical Words**: May need manual correction
-        """
+## 🎤 Panduan Mode Suara
+
+### Persiapan:
+1. ✅ Pastikan microphone terhubung (built-in laptop juga OK)
+2. ✅ Cari tempat yang tenang
+3. ✅ Siapkan jawaban (pikirkan struktur STAR)
+4. ✅ Test volume microphone
+
+### Saat Merekam:
+- 🎯 Bicara dengan jelas dalam Bahasa Indonesia
+- 🎯 Kecepatan normal (tidak terlalu cepat/lambat)
+- 🎯 Ucapkan istilah teknis dengan jelas
+- 🎯 Jeda sebentar antar kalimat
+- 🎯 Durasi ideal: 2-3 menit
+
+### Istilah Teknis:
+
+| Istilah | Cara Bicara |
+|---------|-------------|
+| SQL | "es-ku-el" (eja huruf) |
+| API | "a-pe-i" atau "application programming interface" |
+| ML | "em-el" atau "machine learning" |
+| pandas | "pan-das" (seperti hewan panda) |
+| scikit-learn | "scikit learn" (jelas pisahkan) |
+
+### After Recording:
+1. ✅ Dengar playback untuk cek kualitas
+2. ✅ Jika jelek, rekam ulang
+3. ✅ Klik transkripsi
+4. ✅ Edit hasil jika ada salah
+5. ✅ Analisis seperti biasa
+
+### Tips Pro:
+- 📱 Gunakan headset dengan mic untuk kualitas lebih baik
+- 🔇 Matikan notifikasi & tutup aplikasi berisik
+- ⏱️ Latihan dulu tanpa rekam untuk flow yang smooth
+- 📝 Buat bullet points sebelum bicara
+"""
         
         return guide
-    
-    def get_transcription_confidence(self, text):
-        """
-        Estimate transcription confidence (placeholder)
-        In production, this would come from the speech recognition API
-        
-        Args:
-            text (str): Transcribed text
-            
-        Returns:
-            float: Confidence score (0-1)
-        """
-        # Simple heuristic: longer text = higher confidence
-        word_count = len(text.split())
-        
-        if word_count < 20:
-            return 0.6
-        elif word_count < 100:
-            return 0.75
-        elif word_count < 200:
-            return 0.85
-        else:
-            return 0.9
-    
-    def format_transcription_display(self, text, confidence):
-        """
-        Format transcription with confidence indicator
-        
-        Args:
-            text (str): Transcribed text
-            confidence (float): Confidence score
-            
-        Returns:
-            str: Formatted HTML
-        """
-        if confidence >= 0.8:
-            color = "#28a745"
-            label = "High Confidence"
-        elif confidence >= 0.6:
-            color = "#ffc107"
-            label = "Medium Confidence"
-        else:
-            color = "#dc3545"
-            label = "Low Confidence - Please Review"
-        
-        html = f"""
-        <div style="background: #f8f9fa; padding: 1rem; border-radius: 10px; border-left: 4px solid {color};">
-            <p style="margin: 0; color: {color}; font-weight: bold;">
-                🎤 Transcription {label} ({confidence:.0%})
-            </p>
-            <p style="margin-top: 0.5rem; color: #333;">
-                {text}
-            </p>
-        </div>
-        """
-        
-        return html
-    
-    def get_voice_mode_settings(self):
-        """
-        Get settings for voice mode
-        """
-        settings = {
-            'language': 'en-US',  # Default to English
-            'sample_rate': 16000,
-            'channels': 1,
-            'max_duration': 300,  # 5 minutes max
-            'auto_punctuation': True,
-            'filter_profanity': False
-        }
-        
-        return settings
-    
-    def validate_audio_quality(self, audio_data):
-        """
-        Validate audio quality before transcription
-        
-        Args:
-            audio_data: Audio data
-            
-        Returns:
-            dict: Validation results
-        """
-        # Placeholder for audio quality validation
-        # In production, check:
-        # - Volume level
-        # - Background noise
-        # - Sample rate
-        # - Duration
-        
-        return {
-            'valid': True,
-            'quality_score': 0.85,
-            'issues': [],
-            'recommendations': []
-        }
-    
-    def suggest_improvements(self, transcription):
-        """
-        Suggest improvements for voice delivery
-        
-        Args:
-            transcription (str): Transcribed text
-            
-        Returns:
-            list: Suggestions
-        """
-        suggestions = []
-        
-        # Check for filler words
-        filler_words = ['um', 'uh', 'like', 'you know', 'basically', 'actually']
-        filler_count = sum(transcription.lower().count(word) for word in filler_words)
-        
-        if filler_count > 5:
-            suggestions.append("Try to reduce filler words (um, uh, like) - practice pausing instead")
-        
-        # Check pace (words per minute)
-        word_count = len(transcription.split())
-        # Assuming average speaking time of 2-3 minutes
-        if word_count < 150:
-            suggestions.append("You might be speaking too slowly - try to be more concise")
-        elif word_count > 400:
-            suggestions.append("You might be speaking too fast - slow down for clarity")
-        
-        # Check for technical terms
-        technical_terms = ['python', 'sql', 'machine learning', 'data', 'model', 'algorithm']
-        tech_count = sum(transcription.lower().count(term) for term in technical_terms)
-        
-        if tech_count < 3:
-            suggestions.append("Include more technical terms to demonstrate expertise")
-        
-        return suggestions
