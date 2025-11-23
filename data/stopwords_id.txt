@@ -130,8 +130,6 @@ bukanlah
 bukannya
 bulan
 bung
-cara
-caranya
 cukup
 cukupkah
 cukuplah
@@ -369,8 +367,6 @@ mana
 manakala
 manalagi
 masa
-masalah
-masalahnya
 masih
 masihkah
 masing
