@@ -44,7 +44,7 @@ st.markdown("""
         font-weight: 800;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        -webkit-text-fill-color: #333;
         text-align: center;
         margin-bottom: 0.5rem;
         animation: fadeInDown 1s;
@@ -52,8 +52,9 @@ st.markdown("""
     
     .subtitle {
         text-align: center;
-        color: #666;
-        font-size: 1.2rem;
+        color: #333;
+        font-size: 3.0rem;
+        font-weight: 800;
         margin-bottom: 2rem;
     }
     
