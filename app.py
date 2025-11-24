@@ -765,14 +765,18 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
                 for rec in feedback['recommendations']:
                     st.markdown(f"• {rec}")
 
+# --- Updated Tab 2 Code (Radar Chart + Clean UI) ---
+
 with tab2:
     st.markdown("### 📊 Dashboard Analitik Anda")
 
     if st.session_state.question_count == 0:
         st.info("📝 Mulai latihan untuk melihat analitik Anda!")
-    
+
     else:
-        # ============ HITUNG METRIK ============
+        # =============================================================
+        # 1. HITUNG METRIK UTAMA
+        # =============================================================
         avg_score = st.session_state.total_score / st.session_state.question_count
         best_score = max([item['score'] for item in st.session_state.interview_history])
 
@@ -782,55 +786,51 @@ with tab2:
             first_avg = sum([item['score'] for item in st.session_state.interview_history[:3]]) / min(3, len(st.session_state.interview_history))
             improvement = recent_avg - first_avg
 
-        # ============ HERO CARDS ============
+        # =============================================================
+        # 2. HERO CARDS (Performance Overview)
+        # =============================================================
         st.markdown("#### 🎯 Performance Overview")
         col_sum1, col_sum2, col_sum3, col_sum4 = st.columns(4)
 
+        # Card 1
         with col_sum1:
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        padding: 1.5rem; border-radius: 15px; text-align: center;">
+            <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 1.5rem; border-radius: 15px; text-align: center;">
                 <div style="color:white; opacity:0.9; font-size:0.9rem;">Total Latihan</div>
                 <div style="color:white; font-size:2.5rem; font-weight:800;">{st.session_state.question_count}</div>
                 <div style="color:white; opacity:0.8; font-size:0.85rem;">pertanyaan dijawab</div>
             </div>
             """, unsafe_allow_html=True)
 
+        # Card 2
         with col_sum2:
             avg_color = "#11998e" if avg_score >= 4.0 else "#667eea" if avg_score >= 3.5 else "#f093fb"
             avg_color_end = "#38ef7d" if avg_score >= 4.0 else "#764ba2" if avg_score >= 3.5 else "#f5576c"
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, {avg_color}, {avg_color_end});
-                        padding: 1.5rem; border-radius: 15px; text-align: center;">
+            <div style="background: linear-gradient(135deg, {avg_color}, {avg_color_end}); padding: 1.5rem; border-radius: 15px; text-align: center;">
                 <div style="color:white; opacity:0.9; font-size:0.9rem;">Rata-rata Skor</div>
-                <div style="color:white; font-size:2.5rem; font-weight:800;">
-                    {avg_score:.1f}<span style="font-size:1.2rem; opacity:0.8;">/5.0</span>
-                </div>
-                <div style="color:white; opacity:0.8; font-size:0.85rem;">
-                    {'🎯 Excellent!' if avg_score >= 4.0 else '👍 Good!' if avg_score >= 3.5 else '💪 Keep Going!'}
-                </div>
+                <div style="color:white; font-size:2.5rem; font-weight:800;">{avg_score:.1f}<span style="font-size:1.2rem; opacity:0.8;">/5.0</span></div>
+                <div style="color:white; opacity:0.8; font-size:0.85rem;">{'🎯 Excellent!' if avg_score >= 4.0 else '👍 Good!' if avg_score >= 3.5 else '💪 Keep Going!'}</div>
             </div>
             """, unsafe_allow_html=True)
 
+        # Card 3
         with col_sum3:
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #f093fb, #f5576c);
-                        padding: 1.5rem; border-radius: 15px; text-align: center;">
+            <div style="background: linear-gradient(135deg, #f093fb, #f5576c); padding: 1.5rem; border-radius: 15px; text-align: center;">
                 <div style="color:white; opacity:0.9; font-size:0.9rem;">Skor Terbaik</div>
-                <div style="color:white; font-size:2.5rem; font-weight:800;">
-                    {best_score:.1f}<span style="font-size:1.2rem; opacity:0.8;">/5.0</span>
-                </div>
+                <div style="color:white; font-size:2.5rem; font-weight:800;">{best_score:.1f}<span style="font-size:1.2rem; opacity:0.8;">/5.0</span></div>
                 <div style="color:white; opacity:0.8; font-size:0.85rem;">🏆 personal best</div>
             </div>
             """, unsafe_allow_html=True)
 
+        # Card 4
         with col_sum4:
             imp_color = "#11998e" if improvement > 0 else "#667eea" if improvement == 0 else "#dc3545"
             imp_color_end = "#38ef7d" if improvement > 0 else "#764ba2" if improvement == 0 else "#f5576c"
             imp_icon = "📈" if improvement > 0 else "➡️" if improvement == 0 else "📉"
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, {imp_color}, {imp_color_end});
-                        padding: 1.5rem; border-radius: 15px; text-align: center;">
+            <div style="background: linear-gradient(135deg, {imp_color}, {imp_color_end}); padding: 1.5rem; border-radius: 15px; text-align: center;">
                 <div style="color:white; opacity:0.9; font-size:0.9rem;">Peningkatan</div>
                 <div style="color:white; font-size:2.5rem; font-weight:800;">{improvement:+.1f}</div>
                 <div style="color:white; opacity:0.8; font-size:0.85rem;">{imp_icon} dari awal</div>
@@ -838,8 +838,46 @@ with tab2:
             """, unsafe_allow_html=True)
 
         st.markdown("---")
+        # =====================================================
+        # 🧭 SKILL RADAR CHART (PERBAIKAN TAMPILAN)
+        # =====================================================
+        st.markdown("### 🧭 Skill Radar Analysis")
 
-        # ============ KATEGORI CHART ============
+        # Hitung kategori dulu
+        category_data = {}
+        for item in st.session_state.interview_history:
+            category_data.setdefault(item['category'], []).append(item['score'])
+
+        category_avgs = {cat: sum(v)/len(v) for cat, v in category_data.items()}
+
+        radar_categories = list(category_avgs.keys())
+        radar_values     = list(category_avgs.values())
+
+        # Tutup polygon jika kategori > 1
+        if len(radar_categories) > 1:
+            radar_categories.append(radar_categories[0])
+            radar_values.append(radar_values[0])
+
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(
+            r = radar_values,
+            theta = radar_categories,
+            fill='toself',
+            line=dict(color="#6C63FF", width=3),
+            marker=dict(size=7)
+        ))
+
+        fig_radar.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0,5])),
+            showlegend=False,
+            height=500
+        )
+
+        st.plotly_chart(fig_radar, use_container_width=True)
+
+        st.markdown("---")
+        
+        # ============ CATEGORY PERFORMANCE RANKING ============
         st.markdown("#### 📊 Category Performance Ranking")
 
         # buat data kategori
