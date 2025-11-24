@@ -14,7 +14,7 @@ from data_loader import DataLoader
 from cv_analyzer import CVAnalyzer
 from voice_handler import VoiceHandler
 
-# Konfigurasi Halaman
+# ✅ PINDAHKAN KE SINI - HARUS PALING ATAS SEBELUM st.markdown()
 st.set_page_config(
     page_title="Simulator Interview Data Science",
     page_icon="🎯",
@@ -22,9 +22,36 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS Custom untuk UI/UX Modern
+# ✅ GABUNGKAN SEMUA CSS JADI SATU BLOK
 st.markdown("""
 <style>
+    /* Feedback Boxes */
+    .feedback-box {
+        background: #FEF3C7;
+        border-left: 4px solid #F59E0B;
+        padding: 1.2rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        color: #78350F;
+        line-height: 1.6;
+    }
+
+    .improvement-box {
+        background: #FEF2F2;
+        border-left: 4px solid #EF4444;
+        padding: 1.2rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+        color: #7F1D1D;
+    }
+
+    .recommendation-item {
+        margin-bottom: 12px;
+        padding-left: 8px;
+        display: flex;
+        align-items: start;
+    }
+
     /* Tema Utama */
     .main {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -90,22 +117,6 @@ st.markdown("""
         padding: 1.5rem;
         border-radius: 10px;
         margin: 1rem 0;
-    }
-    
-    .feedback-box {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
-        padding: 1.5rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-    }
-    
-    .improvement-box {
-        background: #f8d7da;
-        border-left: 4px solid #dc3545;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
     }
     
     .strength-box {
@@ -265,8 +276,75 @@ cv_analyzer = CVAnalyzer()
 voice_handler = VoiceHandler()
 
 # Header
-st.markdown('<h1 class="main-title">🎯 Simulator Interview Data Science</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Latihan Interview Data Science dengan Analisis AI</p>', unsafe_allow_html=True)
+st.markdown('''
+<style>
+.header-wrapper {
+    position: relative;
+    background-image: linear-gradient(rgba(102, 126, 234, 0.9), rgba(118, 75, 162, 0.9)), 
+                      url('https://images.unsplash.com/photo-1573164713988-8665fc963095?w=1200');
+    /* Alternatif gambar yang lebih bagus:
+    
+    - Professional interview setting:
+    url('https://images.unsplash.com/photo-1556761175-b413da4baf72?w=1200');
+    
+    - Modern office/workspace:
+    url('https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200');
+    
+    - Business meeting:
+    url('https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1200');
+    
+    - Data/Analytics theme:
+    url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200');
+    */
+    
+    background-size: cover;
+    background-position: center;
+    padding: 60px 20px;
+    border-radius: 20px;
+    margin-bottom: 30px;
+    overflow: hidden;
+    box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+}
+
+.header-wrapper::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.15);
+    z-index: 0;
+}
+
+.main-title {
+    position: relative;
+    color: white;
+    font-size: 3rem;
+    font-weight: 800;
+    text-align: center;
+    margin: 0;
+    z-index: 1;
+    text-shadow: 3px 3px 8px rgba(0,0,0,0.6);
+}
+
+.subtitle {
+    position: relative;
+    color: rgba(255,255,255,0.98);
+    font-size: 1.4rem;
+    text-align: center;
+    margin-top: 15px;
+    z-index: 1;
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.5);
+    font-weight: 500;
+}
+</style>
+
+<div class="header-wrapper">
+    <h1 class="main-title">💼 Data Science Interview Prep</h1>
+    <p class="subtitle">Platform Latihan Interview dengan Text Mining Analysis</p>
+</div>
+''', unsafe_allow_html=True)
 
 # Sidebar
 with st.sidebar:
@@ -741,29 +819,110 @@ Ingat: Sertakan angka, tools spesifik, dan dampak bisnis!""",
                         st.markdown(f'<div class="improvement-box">⚠️ {gap}</div>', unsafe_allow_html=True)
                 else:
                     st.success("Jawaban sudah cukup lengkap!")
-            
-            # Feedback Spesifik
+
+            # Feedback Spesifik (di luar expander)
+            # ✅ PERBAIKI BAGIAN FEEDBACK - Bersihkan semua ** dengan regex
+            import re
+
+            # Di bagian Feedback Spesifik
             st.markdown("#### 💡 Feedback Spesifik")
-            st.markdown(f'<div class="feedback-box">{feedback["specific_feedback"]}</div>', 
-                       unsafe_allow_html=True)
-            
-            # Area Perbaikan
+
+            # Bersihkan ** dengan regex (lebih powerful)
+            feedback_clean = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', feedback["specific_feedback"])
+
+            st.markdown(
+                f'<div class="feedback-box">{feedback_clean}</div>', 
+                unsafe_allow_html=True
+            )
+
+            # ✅ PERBAIKI AREA IMPROVEMENT
             st.markdown("#### 🎯 Area yang Perlu Diperbaiki")
-            if feedback['improvements']:
+
+            if feedback.get('improvements') and len(feedback['improvements']) > 0:
                 for i, improvement in enumerate(feedback['improvements'], 1):
-                    st.markdown(f"**{i}.** {improvement}")
+                    # Bersihkan ** dan convert ke <strong>
+                    clean_text = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', improvement).strip()
+                    
+                    st.markdown(
+                        f"""
+                        <div style="
+                            background-color: #FEF2F2;
+                            border-left: 4px solid #EF4444;
+                            padding: 1rem 1.2rem;
+                            border-radius: 8px;
+                            margin-bottom: 0.8rem;
+                            color: #7F1D1D;
+                            line-height: 1.7;
+                        ">
+                            <strong style="color: #991B1B;">{i}.</strong> {clean_text}
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
             else:
-                st.success("Jawaban Anda sudah sangat baik!")
+                st.markdown(
+                    """
+                    <div style="
+                        background-color: #D1FAE5;
+                        border-left: 4px solid #10B981;
+                        padding: 1rem 1.2rem;
+                        border-radius: 8px;
+                        color: #065F46;
+                    ">
+                        ✅ <strong>Jawaban Anda sudah sangat baik!</strong>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
             
             # Ringkasan
             st.markdown("#### 📋 Ringkasan")
             st.info(feedback['summary'])
 
-            # Rekomendasi
-            with st.expander("📚 Rekomendasi Belajar"):
-                st.markdown("**Sumber Belajar yang Direkomendasikan:**")
+            # Kemudian di bagian expander, GANTI SEMUA kode dengan ini:
+            with st.expander("💎 Rekomendasi Premium untuk Meningkatkan Jawaban Anda"):
+                st.markdown("""
+                <div style="
+                    background: white;
+                    border: 1px solid #E5E7EB;
+                    padding: 1.5rem 1.8rem;
+                    border-radius: 14px;
+                    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+                    font-size: 0.95rem;
+                    line-height: 1.65;
+                ">
+                    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                        <div style="
+                            background: linear-gradient(135deg, #8B5CF6, #EC4899);
+                            width: 38px; height: 38px;
+                            border-radius: 10px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin-right: 12px;
+                        ">
+                            <span style="font-size: 20px; color: white;">📚</span>
+                        </div>
+                        <h4 style="margin: 0; font-size: 1.1rem; color:#1F2937;">
+                            Rekomendasi Belajar yang Dipersonalisasi
+                        </h4>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Tampilkan tiap rekomendasi
                 for rec in feedback['recommendations']:
-                    st.markdown(f"• {rec}")
+                    rec_clean = rec.replace("**", "")
+                    st.markdown(
+                        f"""
+                        <div class="recommendation-item">
+                            <span style="font-size: 1.1rem; margin-right: 10px;">✨</span>
+                            <span style="color:#374151;">{rec_clean}</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                
+                st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Updated Tab 2 Code (Radar Chart + Clean UI) ---
 
