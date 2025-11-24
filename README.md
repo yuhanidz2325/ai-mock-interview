@@ -70,7 +70,7 @@ Bukan hanya summary generic, tapi feedback lengkap:
 ```bash
 # 1. Clone atau download project
 git clone <repo-url>
-cd ds-interview-simulator
+cd ai-mock-interview
 
 # 2. Buat virtual environment
 python -m venv venv
